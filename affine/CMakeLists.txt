@@ -1,13 +1,20 @@
 cmake_minimum_required(VERSION 3.0)
 
-project(cuda_pro)
+project(test_cuda)
 
-set(OpenCV_DIR "/usr/local/lib/cmake/opencv4/")
-set(CUDA_DIR "/usr/local/cuda-10.2")
+# packages
+find_package(CUDA)
 
-find_package(CUDA REQUIRED)
-find_package(OpenCV)
+# nvcc flags
+set(CUDA_NVCC_FLAGS -gencode arch=compute_60,code=sm_20;-G;-g)
 
-add_executable(demo warpAffine.cpp)
-target_link_libraries(demo ${OpenCV_LIBS})
+file(GLOB_RECURSE CURRENT_HEADERS  *.h *.hpp *.cuh)
+file(GLOB CURRENT_SOURCES  *.cpp *.cu)
+
+source_group("Include" FILES ${CURRENT_HEADERS}) 
+source_group("Source" FILES ${CURRENT_SOURCES}) 
+
+set(CMAKE_NVCC_FLAGS "CMAKE_NVCC_FLAGS -std=c++11")
+
+CUDA_ADD_EXECUTABLE(test_cuda ${CURRENT_HEADERS} ${CURRENT_SOURCES})
 

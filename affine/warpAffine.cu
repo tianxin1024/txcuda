@@ -1,6 +1,8 @@
 #include <cuda_runtime.h>
 #include <opencv2/opencv.hpp>
 
+using namespace cv;
+
 struct ConstantValue {
     unsigned char color[3];
 };
@@ -21,7 +23,7 @@ struct ConstantValue {
 //       -- 那么是不是存在超出图像边界的执行
 //       -- 需要控制边界
 //   使用的是输出图像的大小
-__global__ void warp_affine_impl(
+__global__ void warp_affine_gpu_impl(
         unsigned char* src,  // 来源图像
         unsigned char* dst,  // 目标图像
         float* M,             // dst映射到src的矩阵
@@ -43,8 +45,6 @@ __global__ void warp_affine_impl(
        blockIdx.z = 0
        blockIdx.y = 0
        blockIdx.x = 1
-       
-
     */
 }
 
@@ -65,7 +65,7 @@ Mat warp_affine_gpu(const Mat& image, const Mat& M, const Size& size) {
     cv::invertAffineTransform(M, iM);
 
     // 2. 对iM做类型转换， 转为float
-    iM.converTo(iM, CV::32F);
+    iM.convertTo(iM, CV_32F);
 
     // 3. 准备device 指针
     unsigned char* src_device = nullptr;
@@ -95,18 +95,17 @@ Mat warp_affine_gpu(const Mat& image, const Mat& M, const Size& size) {
 
     // 6. 执行核函数
     int jobs = size.area();
-    int threads = 512;
+    int threads = 128;
     int blocks = ceil(jobs / (float)threads);
 
     // gridDim, blockDim, memory,  stream
-    warp_affine_gpu_impl<<<blocks, threads, 0, nullptr>>>(
+    warp_affine_gpu_impl < << blocks, threads, 0, nullptr >> >(
             src_device, dst_device, iM_device, 
             image.cols, image.rows, 
             size.width, size.height, jobs);
 
     // 7. 计算结果复制回来
     cudaMemcpy(output.data, dst_device, dst_bytes, cudaMemcpyDeviceToHost);
-
 
     // 8. 清除分配的空间
     cudaFree(src_device);

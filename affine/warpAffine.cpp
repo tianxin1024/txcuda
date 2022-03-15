@@ -1,7 +1,13 @@
 #include <iostream>
 #include <opencv2/opencv.hpp>
+#include "warpAffine.cu"
 
 using namespace std;
+using namespace cv;
+
+
+// gpu 实现的函数声明
+Mat warp_affine_gpu(const Mat& image, const Mat& M, const Size& size);
 
 int main() {
 
@@ -13,6 +19,8 @@ int main() {
 
     cv::imwrite("affine_cpu.jpg", affine);
 
+    affine = warp_affine_gpu(image, M, image.size());
+    cv::imwrite("affine_gpu.jpg", affine);
 
     return 0;
 }
