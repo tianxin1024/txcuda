@@ -36,6 +36,14 @@ int main(int argc, char **argv) {
     InitCuda(devNum);
     CudaImage img1, img2;
     img1.Allocate(w, h, iAlignUp(w, 128), false, nullptr, (float*)limg.data);
+    img1.Download();
+    img2.Download();
+
+    // Extract Sift features from images
+    SiftData siftData1, siftData2;
+    float initBlur = 1.0f;
+    float thresh = (imgSet ? 4.5f : 3.0f);
+    // InitSiftData(siftData1, 32768, true, true);
 
     return 0;
 }
