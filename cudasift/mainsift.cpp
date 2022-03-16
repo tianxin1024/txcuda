@@ -1,5 +1,7 @@
 #include <iostream>
 #include <opencv2/opencv.hpp>
+#include "cudaSift.h"
+#include "cudaImage.h"
 
 using namespace std;
 using namespace cv;
@@ -32,8 +34,8 @@ int main(int argc, char **argv) {
     // Initial Cuda images and download images to device
     std::cout << " Initializing data ... " << std::endl;
     InitCuda(devNum);
-
-
+    CudaImage img1, img2;
+    img1.Allocate(w, h, iAlignUp(w, 128), false, nullptr, (float*)limg.data);
 
     return 0;
 }
