@@ -37,6 +37,9 @@ typedef struct SiftData {
 } SiftData;
 
 void InitCuda(int devNum = 0);
+float *AllocSiftTempMemory(int width, int height, int numOctaves, bool sacleUp = false);
+void ExtractSift(SiftData &siftData, CudaImage &img, int numOctaves, double initBlur, 
+        float thresh, float lowerScale = 0.0f, bool scaleUp = false, float *tempMemory = 0);
 void InitSiftData(SiftData &data,  int num = 1024, bool host = false, bool dev = true);
 
 #endif  // end of CUDASIFT_H

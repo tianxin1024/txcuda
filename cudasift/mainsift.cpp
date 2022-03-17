@@ -44,6 +44,15 @@ int main(int argc, char **argv) {
     float initBlur = 1.0f;
     float thresh = (imgSet ? 4.5f : 3.0f);
     InitSiftData(siftData1, 32768, true, true);
+    InitSiftData(siftData2, 32768, true, true);
+
+    // A bit of benchmarking
+    float *memoryTmp = AllocSiftTempMemory(w, h, 5, false);
+    for (int i = 0; i < 1000; i++) {
+        ExtractSift(siftData1, img1, 5, initBlur, thresh, 0.0f, false, memoryTmp);
+        ExtractSift(siftData1, img2, 5, initBlur, thresh, 0.0f, false, memoryTmp);
+    }
+    FreeSiftTempMemory(memoryTmp);
 
     return 0;
 }
