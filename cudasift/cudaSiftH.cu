@@ -1,6 +1,9 @@
 #include <iostream>
 #include "cudaSift.h"
 #include "cudautils.h"
+#include "cudaSiftD.h"
+
+#include "cudaSiftD.cu"
 
 
 void InitCuda(int devNum) {
@@ -30,7 +33,8 @@ float *AllocSiftTempMemory(int width, int height, int numOctaves, bool scaleUp) 
     int w = width * (scaleUp ? 2 : 1);
     int h = height * (scaleUp ? 2 : 1);
     int p = iAlignUp(w, 128);
-    int sizeTmp = nd * h * p;
+    int size = h * p;           // image sizes
+    int sizeTmp = nd * h * p;   // laplace buffer sizes
     for (int i = 0; i < numOctaves; i++) {
         w /= 2;
         h /= 2;
@@ -49,6 +53,27 @@ float *AllocSiftTempMemory(int width, int height, int numOctaves, bool scaleUp) 
     return memoryTmp;
 }
 
+/* Multi-scale functions */
+void PrepareLaplaceKernels(int numOctaves, float initBlur, float *kernel) {
+    if (numOctaves > 1) {
+        float totInitBlur = (float)sqrt(initBlur * initBlur + 0.5f * 0.5f) / 2.0f;
+        PrepareLaplaceKernels(numOctaves - 1, totInitBlur, kernel);
+    }
+    float scale = pow(2.0f, -1.0f / NUM_SCALES);
+    float diffScale = pow(2.0f, 1.0f / NUM_SCALES);
+    for (int i = 0; i < NUM_SCALES + 3; i++) {
+        float kernelSum = 0.0f;
+        float var = scale * scale - initBlur * initBlur;
+        for (int j = 0; j <= LAPLACE_R; j++) {
+            kernel[numOctaves * 12 * 16 + 16 * i + j] = (float)expf(-(double)j *j / 2.0 / var);
+            kernelSum += (j == 0 ? 1 : 2) * kernel[numOctaves * 12 * 16 + 16 * i + j];
+        }
+        for (int j = 0; j < LAPLACE_R; j++) {
+            kernel[numOctaves * 12 * 16 + 16 * i + j] /= kernelSum;
+        }
+        scale *= diffScale;
+    }
+}
 
 void ExtractSift(SiftData &siftData, CudaImage &img, int numOctaves, double initBlur, 
         float thresh, float lowerScale, bool scaleUp, float *tempMemory) {
@@ -62,6 +87,7 @@ void ExtractSift(SiftData &siftData, CudaImage &img, int numOctaves, double init
     int w = img.width * (scaleUp ? 2 : 1);
     int h = img.height * (scaleUp ? 2 : 1);
     int p = iAlignUp(w, 128);
+    int width = w, height = h;
     int size = h * p;
     int sizeTmp = nd * h * p;
     for (int i = 0; i < numOctaves; i++) {
@@ -85,14 +111,14 @@ void ExtractSift(SiftData &siftData, CudaImage &img, int numOctaves, double init
     float *memorySub = memoryTmp + sizeTmp;
 
     CudaImage lowImg;
-    lowImg.Allocated(width, height, iAlignUp(width, 128), false, memorySub);
+    lowImg.Allocate(width, height, iAlignUp(width, 128), false, memorySub);
     if (!scaleUp) {
         float kernel[8 * 12 * 16];
         PrepareLaplaceKernels(numOctaves, 0.0f, kernel);
         safeCall(cudaMemcpyToSymbolAsync(d_LaplaceKernel, kernel, 8 * 12 * 16 * sizeof(float)));
         LowPass(lowImg, img, max(initBlur, 0.001f));
         TimerGPU timer1(0);
-        ExtractSiftLoop(siftData, lowImg, numOctaves, 0.0f, thresh, lowestScale, 1.0f, meoryTmp, memorySub + height * iAlignUp(width, 128));
+        ExtractSiftLoop(siftData, lowImg, numOctaves, 0.0f, thresh, lowestScale, 1.0f, memoryTmp, memorySub + height * iAlignUp(width, 128));
         safeCall(cudaMemcpy(&siftData.numPts, &d_PointCounterAddr[2 * numOctaves], sizeof(int), cudaMemcpyDeviceToHost));
         siftData.numPts = (siftData.numPts<siftData.maxPts ? siftData.numPts : siftData.maxPts);
         printf("SIFT extraction time = \t %.2f ms %d\n", timer1.read(), siftData.numPts);
@@ -132,3 +158,5 @@ void InitSiftData(SiftData &data, int num, bool host, bool dev) {
     }
 #endif
 }
+
+

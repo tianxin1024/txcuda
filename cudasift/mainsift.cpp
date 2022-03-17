@@ -52,7 +52,7 @@ int main(int argc, char **argv) {
         ExtractSift(siftData1, img1, 5, initBlur, thresh, 0.0f, false, memoryTmp);
         ExtractSift(siftData1, img2, 5, initBlur, thresh, 0.0f, false, memoryTmp);
     }
-    FreeSiftTempMemory(memoryTmp);
+    // FreeSiftTempMemory(memoryTmp);
 
     return 0;
 }

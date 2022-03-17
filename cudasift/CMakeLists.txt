@@ -5,7 +5,12 @@ project(demo)
 find_package(OpenCV REQUIRED)
 find_package(CUDA QUIET REQUIRED)
 
-CUDA_ADD_LIBRARY(demo_pro cudaSift.h cudaSiftH.cu cudautils.h cudaImage.h cudaImage.cu)
+# CUDA_ADD_LIBRARY(demo_pro cudaSift.h cudaSiftH.cu cudautils.h cudaImage.h cudaImage.cu)
+file(GLOB_RECURSE cuda_src ${PROJECT_SOURCE_DIR}/*.cu)
+file(GLOB_RECURSE cuda_header ${PROJECT_SOURCE_DIR}/*.h)
+
+cuda_add_library(demo_pro ${cuda_src} ${cuda_header})
+
 
 add_executable(demo mainsift.cpp)
 
