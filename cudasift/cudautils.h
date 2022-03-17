@@ -59,4 +59,6 @@ public:
     }
 };
 
+
+
 #endif  // end of CUDAUTILS_H

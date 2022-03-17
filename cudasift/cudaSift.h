@@ -3,6 +3,7 @@
 
 
 #include "cudautils.h"
+#include "cudaImage.h"
 
 
 typedef struct SiftPoint {
@@ -36,5 +37,6 @@ typedef struct SiftData {
 } SiftData;
 
 void InitCuda(int devNum = 0);
+void InitSiftData(SiftData &data,  int num = 1024, bool host = false, bool dev = true);
 
 #endif  // end of CUDASIFT_H

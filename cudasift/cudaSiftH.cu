@@ -24,3 +24,20 @@ void InitCuda(int devNum) {
     return ;
 }
 
+void InitSiftData(SiftData &data, int num, bool host, bool dev) {
+    data.numPts = 0;
+    data.maxPts = num;
+    int sz = sizeof(SiftPoint) * num;
+#ifdef MANAGEDMEN
+    safeCall(cudaMallocManaged((void **) &data.m_data, sz));
+#else
+    data.h_data = nullptr;
+    if (host) {
+        data.h_data = (SiftPoint *)malloc(sz);
+    }
+    data.d_data = nullptr;
+    if (dev) {
+        safeCall(cudaMalloc((void **)&data.d_data, sz));
+    }
+#endif
+}
