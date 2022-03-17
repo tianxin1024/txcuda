@@ -159,4 +159,36 @@ void InitSiftData(SiftData &data, int num, bool host, bool dev) {
 #endif
 }
 
+double LowPass(CudaImage &res, CudaImage &src, float scale) {
+
+    float kernel[2 * LOWPASS_R + 1];
+    static float oldScale = -1.0f;
+    if (scale != oldScale) {
+        float kernelSum = 0.0f;
+        float ivar2 = 1.0f / (2.0f * scale * scale);
+        for (int j = -LOWPASS_R; j <= LOWPASS_R; j++) {
+            kernel[j + LOWPASS_R] = (float)expf(-(double)j * j * ivar2);
+            kernelSum += kernel[j + LOWPASS_R];
+        }
+        for (int j = -LOWPASS_R; j <= LOWPASS_R; j++) {
+            kernel[j + LOWPASS_R] /= kernelSum;
+        }
+        safeCall(cudaMemcpyToSymbol(d_LowPassKernel, kernel, (2 * LOWPASS_R + 1) * sizeof(float)));
+        oldScale = scale;
+    }
+
+    int width = res.width;
+    int pitch = res.pitch;
+    int height = res.height;
+    dim3 blocks(iDivUp(width, LOWPASS_W), iDivUp(height, LOWPASS_H));
+#if 1
+    dim3 threads(LOWPASS_W + 2 * LOWPASS_R, 4);
+    LowPassBlock<<<blocks, threads>>>(src.d_data, res.d_data, width, pitch, height):
+#else
+    LowPass<<<blocks, threads>>>(src.d_data, res.d_data, width, pitch, height);
+#endif
+    checkMsg("LowPass() execution failed\n");
+    return 0.0;
+}
+
 
