@@ -7,10 +7,19 @@
 #include <cuda_runtime.h>
 
 #define safeCall(err)  __safeCall(err, __FILE__, __LINE__)
+#define checkMsg(msg)  __checkMsg(msg, __FILE__, __LINE__)
 
 inline void __safeCall(cudaError err, const char *file, const int line) {
     if (cudaSuccess != err) {
         fprintf(stderr, "safeCall() Runtime API error in file <%s>, line %i : %s.\n", file, line, cudaGetErrorString(err));
+        exit(-1);
+    }
+}
+
+inline void __checkMsg(const char *errorMessage, const char *file, const int line) {
+    cudaError_t err = cudaGetLastError();
+    if (cudaSuccess != err) {
+        fprintf(stderr, "threadSynchronize() Driver API error in file '%s' in line %i : %s.\n", file, line, cudaGetErrorString(err));
         exit(-1);
     }
 }
@@ -66,6 +75,26 @@ __device__ __inline__ T ShiftDown(T var, unsigned int delta, int width = 32) {
     return __shfl_down_sync(0xffffffff, var, delta, width);
 #else
     return __shfl_down(var, delta, width);
+#endif
+}
+
+
+template <class T>
+__device__ __inline__ T ShiftUp(T var, unsigned int delta, int width = 32) {
+#if (CUDART_VERSION >= 9000)
+    return __shfl_up_sync(0xffffffff, var, delta, width);
+#else
+    return __shfl_up(var, delta, width);
+#endif
+}
+
+
+template <class T>
+__device__ __inline__ T Shuffle(T var, unsigned int lane, int width = 32) {
+#if (CUDART_VERSION >= 9000)
+    return __shfl_sync(0xffffffff, var, lane, width);
+#else
+    return __shfl(var, lane, width);
 #endif
 }
 

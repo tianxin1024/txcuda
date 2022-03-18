@@ -206,7 +206,7 @@ int ExtractSiftLoop(SiftData &siftData, CudaImage &img, int numOctaves, double i
         subImg.Allocate(w / 2, h / 2, p, false, memorySub);
         ScaleDown(subImg, img, 0.5f);
         float totInitBlur = (float)sqrt(initBlur * initBlur + 0.5f * 0.5f) / 2.0f;
-        ExtractSiftLoop(siftData, subImg, numOctaves - 1, totInitBlur, thresh, lowestScale, subsmapling * 2.0f, memoryTmp, memorySub + (h / 2) * p);
+        ExtractSiftLoop(siftData, subImg, numOctaves - 1, totInitBlur, thresh, lowestScale, subsampling * 2.0f, memoryTmp, memorySub + (h / 2) * p);
     }
     ExtractSiftOctave(siftData, img, numOctaves, thresh, lowestScale, subsampling, memoryTmp);
 #ifdef VERBOSE
@@ -280,5 +280,107 @@ void ExtractSiftOctave(SiftData &siftData, CudaImage &img, int octave, float thr
     if (totPts>0) 
         printf("           %.2f ms / DoG,  %.4f ms / Sift,  #Sift = %d\n", gpuTimeDoG/NUM_SCALES, gpuTimeSift/(totPts-fstPts), totPts-fstPts); 
 #endif
+}
+
+double ScaleDown(CudaImage &res, CudaImage &src, float variance) {
+    static float oldVariance = -0.1f;
+    if (res.d_data == nullptr || src.d_data == nullptr) {
+        printf("ScaleDown: missing data\n");
+        return 0.0;
+    }
+    if (oldVariance != variance) {
+        float h_Kernel[5];
+        float kernelSum = 0.0f;
+        for (int j = 0; j < 5; j++) {
+            h_Kernel[j] = (float)expf(-(double)(j - 2) * (j - 2) / 2.0 / variance);
+            kernelSum += h_Kernel[j];
+        }
+        for (int j = 0; j < 5; j++) {
+            h_Kernel[j] /= kernelSum;
+        }
+        safeCall(cudaMemcpyToSymbol(d_ScaleDownKernel, h_Kernel, 5 * sizeof(float)));
+        oldVariance = variance;
+    }
+
+#if 0
+    dim3 blocks(iDivUp(src.width, SCALEDOWN_W), iDivUp(src.height, SCALEDOWN_H));
+    dim3 threads(SCALEDOWN_W + 4, SCALEDOWN_H + 4);
+    ScaleDownDenseShift<<<blocks, threads>>>(res.d_data, src.d_data, src.width, src.pitch, src.height, res.pitch);
+#else
+    dim3 blocks(iDivUp(src.width, SCALEDOWN_W), iDivUp(src.height, SCALEDOWN_H));
+    dim3 threads(SCALEDOWN_W + 4);
+    ScaleDown<<<blocks, threads>>>(res.d_data, src.d_data, src.width, src.pitch, src.height, res.pitch);
+#endif
+    checkMsg("ScaleDown() execution failed\n");
+    return 0.0;
+}
+
+double LaplaceMulti(cudaTextureObject_t texObj, CudaImage &baseImage, CudaImage * results, int octave) {
+
+    int width = results[0].width;
+    int pitch = results[0].pitch;
+    int height = results[0].height;
+#if 1
+    dim3 threads(LAPLACE_W + 2 * LAPLACE_R);
+    dim3 blocks(iDivUp(width, LAPLACE_W), height);
+    LaplaceMultiMem<<<blocks, threads>>>(baseImage.d_data, results[0].d_data, width, pitch, height, octave);
+#endif
+    checkMsg("LaplaceMulti() execution failed\n");
+    return 0.0;
+}
+
+double FindPointsMulti(CudaImage *sources, SiftData &siftData, float thresh, float edgeLimit,
+        float factor, float lowestScale, float subsampling, int octave) {
+    if (sources->d_data == nullptr) {
+        printf("FindPointsMulti: missing data\n");
+        return 0.0;
+    }
+    int w = sources->width;
+    int p = sources->pitch;
+    int h = sources->height;
+#if 1
+    dim3 blocks(iDivUp(w, MINMAX_W) * NUM_SCALES, iDivUp(h, MINMAX_H));
+    dim3 threads(MINMAX_W + 2);
+#ifdef MANAGEDMEM
+    FindPointsMulti<<<blocks, threads>>>(sources->d_data, siftData.m_data, w, p, h, 
+            subsampling, lowestScale, thresh, factor, edgeLimit, octave);
+#else
+    FindPointsMultiNew<<<blocks, threads>>>(sources->d_data, siftData.d_data, w, p, h,
+            subsampling, lowestScale, thresh, factor, edgeLimit, octave);
+#endif
+#endif
+    checkMsg("FindPointsMulti() execution failed\n");
+    return 0.0;
+}
+
+double ExtractSiftDescriptors(cudaTextureObject_t texObj, SiftData &siftData, float subsampling, int octave) {
+
+    dim3 blocks(512);
+    dim3 threads(16, 8);
+#ifdef MANAGEDMEM
+    ExtractSiftDescriptorsCONST<<<blocks, threads>>>(texObj, siftData.m_data, subsampling, octave);
+/* #else */
+/*     ExtractSiftDescriptorsCONSTNew<<<blocks, threads>>>(texObj, siftData.d_data, subsampling, octave); */
+#endif
+    checkMsg("ExtractSiftDescriptors() execution failed\n");
+    return 0.0;
+}
+
+
+double ComputeOrientations(cudaTextureObject_t texObj, CudaImage &src, SiftData &siftData, int octave) {
+    dim3 blocks(512); 
+#ifdef MANAGEDMEM
+    ComputeOrientationsCONST<<<blocks, threads>>>(texObj, siftData.m_data, octave);
+#else
+#if 1
+    dim3 threads(11*11);
+    ComputeOrientationsCONST<<<blocks, threads>>>(texObj, siftData.d_data, octave);
+#else
+    dim3 threads(256); 
+    ComputeOrientationsCONSTNew<<<blocks, threads>>>(src.d_data, src.width, src.pitch, src.height, siftData.d_data, octave);
+#endif
+#endif
+    checkMsg("ComputeOrientations() execution failed\n");
+    return 0.0;
 }
 
