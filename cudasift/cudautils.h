@@ -60,5 +60,15 @@ public:
 };
 
 
+template <class T>
+__device__ __inline__ T ShiftDown(T var, unsigned int delta, int width = 32) {
+#if (CUDART_VERSION >= 9000)
+    return __shfl_down_sync(0xffffffff, var, delta, width);
+#else
+    return __shfl_down(var, delta, width);
+#endif
+}
+
+
 
 #endif  // end of CUDAUTILS_H

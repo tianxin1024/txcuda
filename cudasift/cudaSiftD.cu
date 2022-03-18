@@ -5,6 +5,7 @@
 
 __constant__ int d_MaxNumPoints;
 __device__ unsigned int d_PointCounter[8 * 2 + 1];
+__constant__ float d_LowPassKernel[2 * LOWPASS_R + 1];
 __constant__ float d_LaplaceKernel[8 * 12 * 16];
 
 
@@ -18,7 +19,7 @@ __global__ void LowPassBlock(float *d_Image, float *d_Result, int width, int pit
     float *k = d_LowPassKernel;
     int xl = max(min(xp - 4, width - 1), 0);
 #pragma unroll
-    for (int l = -8; l < 4; j += 4) {
+    for (int l = -8; l < 4; l += 4) {
         int ly = l + ty;
         int yl = max(min(yp + l + 4, height - 1), 0);
         float val = d_Image[yl * pitch + xl];
