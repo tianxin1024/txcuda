@@ -13,7 +13,7 @@ void ExtractSiftOctave(SiftData &siftData, CudaImage &img, int octave, float thr
 
 double LowPass(CudaImage &res, CudaImage &src, float scale);
 
-double ScaleDown(CudaImage *res, CudaImage &src, float variance);
+double ScaleDown(CudaImage &res, CudaImage &src, float variance);
 
 double LaplaceMulti(cudaTextureObject_t texObj, CudaImage &baseImage, 
         CudaImage * results, int octave);
