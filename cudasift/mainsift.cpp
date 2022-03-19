@@ -36,6 +36,7 @@ int main(int argc, char **argv) {
     InitCuda(devNum);
     CudaImage img1, img2;
     img1.Allocate(w, h, iAlignUp(w, 128), false, nullptr, (float*)limg.data);
+    img2.Allocate(w, h, iAlignUp(w, 128), false, nullptr, (float*)rimg.data);
     img1.Download();
     img2.Download();
 
@@ -50,6 +51,7 @@ int main(int argc, char **argv) {
     float *memoryTmp = AllocSiftTempMemory(w, h, 5, false);
     for (int i = 0; i < 1000; i++) {
         ExtractSift(siftData1, img1, 5, initBlur, thresh, 0.0f, false, memoryTmp);
+        cout << "----------------------" << endl;
         ExtractSift(siftData1, img2, 5, initBlur, thresh, 0.0f, false, memoryTmp);
     }
     // FreeSiftTempMemory(memoryTmp);

@@ -104,8 +104,8 @@ void ExtractSift(SiftData &siftData, CudaImage &img, int numOctaves, double init
         size_t pitch;
         safeCall(cudaMallocPitch((void **)&memoryTmp, &pitch, (size_t)4096, (size + 4095)/4096 * sizeof(float)));
 #ifdef VERBOSE
-    printf("Allocated memory size: %d bytes\n", size);
-    printf("Memory allocated time = \t %.2f ms \n\n", timer.read());
+        printf("Allocated memory size: %d bytes\n", size);
+        printf("Memory allocated time = \t %.2f ms \n\n", timer.read());
 #endif
     }
 

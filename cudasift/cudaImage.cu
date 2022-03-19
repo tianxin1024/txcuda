@@ -2,15 +2,15 @@
 #include "cudautils.h"
 #include "cudaImage.h"
 
-void CudaImage::Allocate(int width, 
-                         int height, 
-                         int pitch, 
+void CudaImage::Allocate(int w, 
+                         int h, 
+                         int p, 
                          bool host, 
                          float *devmem, 
                          float *hostmem) {
-    width = width;
-    height = height;
-    pitch = pitch;
+    width = w;
+    height = h;
+    pitch = p;
     d_data = devmem;
     h_data = hostmem;
     t_data = nullptr;
